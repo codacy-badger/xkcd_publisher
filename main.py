@@ -52,10 +52,10 @@ def upload_image_on_server_vk(photo, address_to_upload_photo):
     files = {'photo': (photo, image_file_descriptor)}
     response = requests.post(address_to_upload_photo, files=files)
     image_file_descriptor.close()
-    return response.json()["server"], response.json()["photo"], response.json()["hash"]
+    return response.json()
 
 
-def save_uploaded_image(token, server_id_vk, uploaded_photo_data, hash_image, version_api = VERSION_API):
+def save_uploaded_image(token, server_id_vk, uploaded_photo_data, hash_image, version_api=VERSION_API):
     vk_api_url = "https://api.vk.com/method/"
     method_name = 'photos.saveWallPhoto'
     search_params = {
@@ -67,6 +67,22 @@ def save_uploaded_image(token, server_id_vk, uploaded_photo_data, hash_image, ve
 
     }
     response = requests.post("{}{}".format(vk_api_url, method_name), params=search_params)
+    return response.json()
+
+
+def publish_image_on_wall(token, owner_id, from_group, attachments, message, version_api=VERSION_API):
+    vk_api_url = "https://api.vk.com/method/"
+    method_name = 'wall.post'
+    search_params = {
+        "owner_id": owner_id,
+        "from_group": from_group,
+        "attachments": attachments,
+        "message": message,
+        "access_token": token,
+        "v": version_api,
+
+    }
+    response = requests.get("{}{}".format(vk_api_url, method_name), params=search_params)
     return response.json()
 
 
@@ -87,8 +103,27 @@ def main():
         sys.exit("Could not get author's comment.")
 
     address_to_upload_photo = get_address_to_upload_photo(token)
-    server_id_vk, uploaded_image_data, hash_image = upload_image_on_server_vk("comic.png", address_to_upload_photo)
-    print(save_uploaded_image(token, server_id_vk, uploaded_image_data, hash_image))
+
+    response_upload_image_on_server_vk = upload_image_on_server_vk("comic.png", address_to_upload_photo)
+    server_id_vk = response_upload_image_on_server_vk["server"]
+    uploaded_image_data = response_upload_image_on_server_vk["photo"]
+    hash_image = response_upload_image_on_server_vk["hash"]
+
+    response_save_uploaded_image = save_uploaded_image(token, server_id_vk, uploaded_image_data, hash_image)
+    owner_id = response_save_uploaded_image["response"][0]["owner_id"]
+    image_id = response_save_uploaded_image["response"][0]["id"]
+    attachments = "photo{}_{}".format(owner_id, image_id)
+
+    group_id = '179225771'
+    response_publish = publish_image_on_wall(
+        token,
+        "-{}".format(group_id),
+        True,
+        attachments,
+        author_comment,
+        version_api=VERSION_API,
+    )
+    print(response_publish)
 
 
 if __name__ == "__main__":
