@@ -47,6 +47,14 @@ def get_address_to_upload_photo(token, version_api=VERSION_API):
         return response.json()["error"]["error_code"]
 
 
+def upload_image_on_server_vk(photo, address_to_upload_photo):
+    image_file_descriptor = open(photo, 'rb')
+    files = {'photo': (photo, image_file_descriptor)}
+    response = requests.post(address_to_upload_photo, files=files)
+    image_file_descriptor.close()
+    return response.json()
+
+
 def main():
     load_dotenv()
     token = os.getenv("ACCESS_TOKEN")
@@ -55,6 +63,7 @@ def main():
     comic_url = fetch_comic_url(json_url)
     if not comic_url:
         sys.exit("Problem with getting a link to a comic")
+
     saved_image_location = "comic.{}".format(get_file_extension(comic_url))
     download_image(comic_url, saved_image_location)
 
@@ -63,6 +72,7 @@ def main():
         sys.exit("Could not get author's comment.")
 
     address_to_upload_photo = get_address_to_upload_photo(token)
+    upload_image_on_server_vk("comic.png", address_to_upload_photo)
 
 
 if __name__ == "__main__":
