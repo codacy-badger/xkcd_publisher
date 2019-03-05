@@ -1,6 +1,10 @@
+import os
 import sys
 
 import requests
+from dotenv import load_dotenv
+
+VERSION_API = 5.92
 
 
 def download_image(image_url, saved_image_location):
@@ -28,7 +32,25 @@ def fetch_author_comment(json_url):
         return response.json()["alt"]
 
 
+def get_address_to_upload_photo(token, version_api=VERSION_API):
+    vk_api_url = "https://api.vk.com/method/"
+    method_name = 'photos.getWallUploadServer'
+    search_params = {
+        "access_token": token,
+        "v": version_api,
+
+    }
+    response = requests.get("{}{}".format(vk_api_url, method_name), params=search_params)
+    try:
+        return response.json()["response"]["upload_url"]
+    except KeyError:
+        return response.json()["error"]["error_code"]
+
+
 def main():
+    load_dotenv()
+    token = os.getenv("ACCESS_TOKEN")
+
     json_url = "https://xkcd.com/353/info.0.json"
     comic_url = fetch_comic_url(json_url)
     if not comic_url:
@@ -39,6 +61,8 @@ def main():
     author_comment = fetch_author_comment(json_url)
     if not author_comment:
         sys.exit("Could not get author's comment.")
+
+    address_to_upload_photo = get_address_to_upload_photo(token)
 
 
 if __name__ == "__main__":
