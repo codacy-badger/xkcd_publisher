@@ -133,6 +133,7 @@ def main():
         version_api=VERSION_API,
     )
     print(response_publish)
+    os.remove(saved_image_location)
 
 
 if __name__ == "__main__":
