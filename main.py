@@ -52,6 +52,21 @@ def upload_image_on_server_vk(photo, address_to_upload_photo):
     files = {'photo': (photo, image_file_descriptor)}
     response = requests.post(address_to_upload_photo, files=files)
     image_file_descriptor.close()
+    return response.json()["server"], response.json()["photo"], response.json()["hash"]
+
+
+def save_uploaded_image(token, server_id_vk, uploaded_photo_data, hash_image, version_api = VERSION_API):
+    vk_api_url = "https://api.vk.com/method/"
+    method_name = 'photos.saveWallPhoto'
+    search_params = {
+        "photo": uploaded_photo_data,
+        "server": server_id_vk,
+        "hash": hash_image,
+        "access_token": token,
+        "v": version_api,
+
+    }
+    response = requests.post("{}{}".format(vk_api_url, method_name), params=search_params)
     return response.json()
 
 
@@ -72,7 +87,8 @@ def main():
         sys.exit("Could not get author's comment.")
 
     address_to_upload_photo = get_address_to_upload_photo(token)
-    upload_image_on_server_vk("comic.png", address_to_upload_photo)
+    server_id_vk, uploaded_image_data, hash_image = upload_image_on_server_vk("comic.png", address_to_upload_photo)
+    print(save_uploaded_image(token, server_id_vk, uploaded_image_data, hash_image))
 
 
 if __name__ == "__main__":
