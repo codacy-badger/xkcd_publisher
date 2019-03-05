@@ -1,5 +1,6 @@
 import os
 import sys
+from random import randint
 
 import requests
 from dotenv import load_dotenv
@@ -20,8 +21,15 @@ def get_file_extension(url):
     return file_extension
 
 
-def fetch_comic_url(json_url):
-    response = requests.get(json_url)
+def fetch_random_comic_json_url(url_current_comic):
+    response = requests.get(url_current_comic)
+    if response.status_code == 200:
+        count_of_comics = response.json()["num"]
+        return "http://xkcd.com/{}/info.0.json".format(randint(1, count_of_comics))
+
+
+def fetch_comic_image_url(comic_json_url):
+    response = requests.get(comic_json_url)
     if response.status_code == 200:
         return response.json()["img"]
 
@@ -90,15 +98,16 @@ def main():
     load_dotenv()
     token = os.getenv("ACCESS_TOKEN")
 
-    json_url = "https://xkcd.com/353/info.0.json"
-    comic_url = fetch_comic_url(json_url)
-    if not comic_url:
+    json_url = "https://xkcd.com/info.0.json"
+    random_comic_json_url = fetch_random_comic_json_url(json_url)
+    image_comic_url = fetch_comic_image_url(random_comic_json_url)
+    if not image_comic_url:
         sys.exit("Problem with getting a link to a comic")
 
-    saved_image_location = "comic.{}".format(get_file_extension(comic_url))
-    download_image(comic_url, saved_image_location)
+    saved_image_location = "comic.{}".format(get_file_extension(image_comic_url))
+    download_image(image_comic_url, saved_image_location)
 
-    author_comment = fetch_author_comment(json_url)
+    author_comment = fetch_author_comment(random_comic_json_url)
     if not author_comment:
         sys.exit("Could not get author's comment.")
 
