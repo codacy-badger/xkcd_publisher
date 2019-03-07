@@ -8,7 +8,7 @@ def get_address_to_upload_photo(token, version_api=VERSION_API):
     method_name = "photos.getWallUploadServer"
     search_params = {"access_token": token, "v": version_api}
     response = requests.get(
-        "{}{}".format(vk_api_url, method_name), params=search_params
+        f"{vk_api_url}{method_name}", params=search_params
     )
     try:
         return response.json()["response"]["upload_url"]
@@ -37,7 +37,7 @@ def save_uploaded_image(
         "v": version_api,
     }
     response = requests.post(
-        "{}{}".format(vk_api_url, method_name), params=search_params
+        f"{vk_api_url}{method_name}", params=search_params
     )
     return response.json()
 
@@ -56,6 +56,6 @@ def publish_image_on_wall(
         "v": version_api,
     }
     response = requests.get(
-        "{}{}".format(vk_api_url, method_name), params=search_params
+        f"{vk_api_url}{method_name}", params=search_params
     )
     return response.json()
