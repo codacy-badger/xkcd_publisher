@@ -1,105 +1,17 @@
-import logging.config
 import os
 import sys
-from random import randint
+from logging import config, getLogger
 
-import requests
 from dotenv import load_dotenv
+
+import post_vkontakte
+import tools
+import xkcd
 
 VERSION_API = 5.92
 
-logging.config.fileConfig(fname='logger.cfg', disable_existing_loggers=False)
-logger = logging.getLogger("xkcd_publisher.py")
-
-
-def download_image(image_url, saved_image_location):
-    response = requests.get(image_url)
-    if response.ok:
-        with open(saved_image_location, "wb") as image_file:
-            image_file.write(response.content)
-
-
-def get_file_extension(url):
-    filename = url.split("/")[-1]
-    file_extension = filename.split(".")[-1]
-    return file_extension
-
-
-def fetch_random_comic_json_url(url_current_comic):
-    response = requests.get(url_current_comic)
-    if response.status_code == 200:
-        count_of_comics = response.json()["num"]
-        return "http://xkcd.com/{}/info.0.json".format(randint(1, count_of_comics))
-
-
-def fetch_comic_image_url(comic_json_url):
-    response = requests.get(comic_json_url)
-    if response.status_code == 200:
-        return response.json()["img"]
-
-
-def fetch_author_comment(json_url):
-    response = requests.get(json_url)
-    if response.status_code == 200:
-        return response.json()["alt"]
-
-
-def get_address_to_upload_photo(token, version_api=VERSION_API):
-    vk_api_url = "https://api.vk.com/method/"
-    method_name = "photos.getWallUploadServer"
-    search_params = {"access_token": token, "v": version_api}
-    response = requests.get(
-        "{}{}".format(vk_api_url, method_name), params=search_params
-    )
-    try:
-        return response.json()["response"]["upload_url"]
-    except KeyError:
-        return response.json()["error"]["error_code"]
-
-
-def upload_image_on_server_vk(photo, address_to_upload_photo):
-    image_file_descriptor = open(photo, "rb")
-    files = {"photo": (photo, image_file_descriptor)}
-    response = requests.post(address_to_upload_photo, files=files)
-    image_file_descriptor.close()
-    return response.json()
-
-
-def save_uploaded_image(
-    token, server_id_vk, uploaded_photo_data, hash_image, version_api=VERSION_API
-):
-    vk_api_url = "https://api.vk.com/method/"
-    method_name = "photos.saveWallPhoto"
-    search_params = {
-        "photo": uploaded_photo_data,
-        "server": server_id_vk,
-        "hash": hash_image,
-        "access_token": token,
-        "v": version_api,
-    }
-    response = requests.post(
-        "{}{}".format(vk_api_url, method_name), params=search_params
-    )
-    return response.json()
-
-
-def publish_image_on_wall(
-    token, owner_id, from_group, attachments, message, version_api=VERSION_API
-):
-    vk_api_url = "https://api.vk.com/method/"
-    method_name = "wall.post"
-    search_params = {
-        "owner_id": owner_id,
-        "from_group": from_group,
-        "attachments": attachments,
-        "message": message,
-        "access_token": token,
-        "v": version_api,
-    }
-    response = requests.get(
-        "{}{}".format(vk_api_url, method_name), params=search_params
-    )
-    return response.json()
+config.fileConfig(fname='logger.cfg', disable_existing_loggers=False)
+logger = getLogger(__file__)
 
 
 def main():
@@ -108,29 +20,29 @@ def main():
 
     logger.info("Download a random comic...")
     json_url = "https://xkcd.com/info.0.json"
-    random_comic_json_url = fetch_random_comic_json_url(json_url)
-    image_comic_url = fetch_comic_image_url(random_comic_json_url)
+    random_comic_json_url = xkcd.fetch_random_comic_json_url(json_url)
+    image_comic_url = xkcd.fetch_comic_image_url(random_comic_json_url)
     if not image_comic_url:
         logger.critical("Problem with getting a link to a comic")
         sys.exit(1)
 
-    saved_image_location = "comic.{}".format(get_file_extension(image_comic_url))
-    download_image(image_comic_url, saved_image_location)
+    saved_image_location = "comic.{}".format(tools.get_file_extension(image_comic_url))
+    tools.download_image(image_comic_url, saved_image_location)
 
-    author_comment = fetch_author_comment(random_comic_json_url)
+    author_comment = xkcd.fetch_author_comment(random_comic_json_url)
     if not author_comment:
         logger.warning("Could not get author's comment.")
 
     logger.info("Upload the comic to the group...")
-    address_to_upload_photo = get_address_to_upload_photo(token)
-    response_upload_image_on_server_vk = upload_image_on_server_vk(
+    address_to_upload_photo = post_vkontakte.get_address_to_upload_photo(token)
+    response_upload_image_on_server_vk = post_vkontakte.upload_image_on_server_vk(
         "comic.png", address_to_upload_photo
     )
     server_id_vk = response_upload_image_on_server_vk["server"]
     uploaded_image_data = response_upload_image_on_server_vk["photo"]
     hash_image = response_upload_image_on_server_vk["hash"]
 
-    response_save_uploaded_image = save_uploaded_image(
+    response_save_uploaded_image = post_vkontakte.save_uploaded_image(
         token, server_id_vk, uploaded_image_data, hash_image
     )
     owner_id = response_save_uploaded_image["response"][0]["owner_id"]
@@ -138,7 +50,7 @@ def main():
     attachments = "photo{}_{}".format(owner_id, image_id)
 
     group_id = "179225771"
-    response_publish = publish_image_on_wall(
+    response_publish = post_vkontakte.publish_image_on_wall(
         token,
         "-{}".format(group_id),
         True,
