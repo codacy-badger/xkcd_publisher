@@ -4,6 +4,8 @@ from random import randint
 import requests
 from requests.exceptions import ConnectionError, HTTPError
 
+import tools
+
 from logging import config, getLogger
 
 config.fileConfig(fname="logger.cfg", disable_existing_loggers=False)
@@ -51,3 +53,14 @@ def fetch_author_comment(comic_url):
         sys.exit(1)
     else:
         return response.json()["alt"]
+
+
+def download_random_xkcd_comic():
+    url_last_comic = "https://xkcd.com/info.0.json"
+    random_comic_url = fetch_random_comic_json_url(url_last_comic)
+    image_comic_url = fetch_comic_image_url(random_comic_url)
+    file_extension = tools.get_file_extension(image_comic_url)
+    saved_image_location = f"comic.{file_extension}"
+    tools.download_image(image_comic_url, saved_image_location)
+
+    return saved_image_location

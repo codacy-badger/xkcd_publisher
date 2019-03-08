@@ -4,8 +4,11 @@ from logging import config, getLogger
 from dotenv import load_dotenv
 
 import post_vkontakte
-import tools
-import xkcd
+from xkcd import (
+    download_random_xkcd_comic,
+    fetch_author_comment,
+    fetch_random_comic_json_url,
+)
 
 VERSION_API = 5.92
 
@@ -19,18 +22,12 @@ def main():
 
     logger.info("Download a random comic...")
 
-    url_last_comic = "https://xkcd.com/info.0.json"
-    random_comic_url = xkcd.fetch_random_comic_json_url(url_last_comic)
-    image_comic_url = xkcd.fetch_comic_image_url(random_comic_url)
-    file_extension = tools.get_file_extension(image_comic_url)
-    saved_image_location = f"comic.{file_extension}"
-    tools.download_image(image_comic_url, saved_image_location)
-    author_comment = xkcd.fetch_author_comment(random_comic_url)
+    saved_image_location = download_random_xkcd_comic()
 
     logger.info("Upload the comic to the group...")
     address_to_upload_photo = post_vkontakte.get_address_to_upload_photo(token)
     response_upload_image_on_server_vk = post_vkontakte.upload_image_on_server_vk(
-        "comic.png", address_to_upload_photo,
+        saved_image_location, address_to_upload_photo,
     )
     server_id_vk = response_upload_image_on_server_vk["server"]
     uploaded_image_data = response_upload_image_on_server_vk["photo"]
@@ -49,7 +46,7 @@ def main():
         f"-{group_id}",
         1,
         attachments,
-        author_comment,
+        fetch_author_comment(fetch_random_comic_json_url()),
         version_api=VERSION_API,
     )
     logger.info("The comic is successfully uploaded to the group!")
