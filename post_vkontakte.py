@@ -1,4 +1,7 @@
+import os
+
 import requests
+from dotenv import load_dotenv
 
 VERSION_API = 5.92
 
@@ -42,9 +45,7 @@ def save_uploaded_image(
     return response.json()
 
 
-def publish_image_on_wall(
-        token, owner_id, from_group, attachments, message, version_api=VERSION_API
-):
+def publish_image_on_wall(token, owner_id, from_group, attachments, message, version_api=VERSION_API):
     vk_api_url = "https://api.vk.com/method/"
     method_name = "wall.post"
     search_params = {
@@ -59,3 +60,33 @@ def publish_image_on_wall(
         f"{vk_api_url}{method_name}", params=search_params
     )
     return response.json()
+
+
+def post_vkontakte(fetch_author_comment, saved_image_location):
+    load_dotenv()
+    token = os.getenv("ACCESS_TOKEN")
+    group_id = os.getenv("GROUP_ID")
+
+    address_to_upload_photo = get_address_to_upload_photo(token)
+    response_upload_image_on_server_vk = upload_image_on_server_vk(
+        saved_image_location, address_to_upload_photo,
+    )
+    server_id_vk = response_upload_image_on_server_vk["server"]
+    uploaded_image_data = response_upload_image_on_server_vk["photo"]
+    hash_image = response_upload_image_on_server_vk["hash"]
+
+    response_save_uploaded_image = save_uploaded_image(
+        token, server_id_vk, uploaded_image_data, hash_image,
+    )
+    owner_id = response_save_uploaded_image["response"][0]["owner_id"]
+    image_id = response_save_uploaded_image["response"][0]["id"]
+    attachments = f"photo{owner_id}_{image_id}"
+
+    publish_image_on_wall(
+        token,
+        f"-{group_id}",
+        True,
+        attachments,
+        fetch_author_comment,
+        version_api=VERSION_API,
+    )
