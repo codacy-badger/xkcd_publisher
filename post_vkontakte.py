@@ -1,4 +1,6 @@
 import os
+import sys
+from logging import config, getLogger
 
 import requests
 from dotenv import load_dotenv
@@ -6,17 +8,20 @@ from dotenv import load_dotenv
 VERSION_API = 5.92
 
 
+def print_error_message(json_schema, logger):
+    error_code = json_schema["error"]["error_code"]
+    error_message = json_schema["error"]["error_msg"]
+    logger.error(f"{error_code} - {error_message}")
+
+
 def get_address_to_upload_photo(token, version_api=VERSION_API):
     vk_api_url = "https://api.vk.com/method/"
     method_name = "photos.getWallUploadServer"
     search_params = {"access_token": token, "v": version_api}
-    response = requests.get(
-        f"{vk_api_url}{method_name}", params=search_params
-    )
-    try:
-        return response.json()["response"]["upload_url"]
-    except KeyError:
-        return response.json()["error"]["error_code"]
+    return requests.get(
+        f"{vk_api_url}{method_name}",
+        params=search_params,
+    ).json()
 
 
 def upload_image_on_server_vk(photo, address_to_upload_photo):
@@ -39,10 +44,9 @@ def save_uploaded_image(
         "access_token": token,
         "v": version_api,
     }
-    response = requests.post(
+    return requests.post(
         f"{vk_api_url}{method_name}", params=search_params
-    )
-    return response.json()
+    ).json()
 
 
 def publish_image_on_wall(token, owner_id, from_group, attachments, message, version_api=VERSION_API):
@@ -63,11 +67,24 @@ def publish_image_on_wall(token, owner_id, from_group, attachments, message, ver
 
 
 def post_vkontakte(fetch_author_comment, saved_image_location):
+    config.fileConfig(fname="logger.cfg", disable_existing_loggers=False)
+    logger = getLogger("post_vkontakte.py")
+
     load_dotenv()
     token = os.getenv("ACCESS_TOKEN")
     group_id = os.getenv("GROUP_ID")
 
-    address_to_upload_photo = get_address_to_upload_photo(token)
+    if not token:
+        logger.critical("write the token in .env file")
+        sys.exit(1)
+
+    response_get_address_to_upload_photo = get_address_to_upload_photo(token)
+
+    if not response_get_address_to_upload_photo.get("response"):
+        print_error_message(response_get_address_to_upload_photo, logger)
+        sys.exit(1)
+    address_to_upload_photo = response_get_address_to_upload_photo["response"]["upload_url"]
+
     response_upload_image_on_server_vk = upload_image_on_server_vk(
         saved_image_location, address_to_upload_photo,
     )
@@ -78,15 +95,24 @@ def post_vkontakte(fetch_author_comment, saved_image_location):
     response_save_uploaded_image = save_uploaded_image(
         token, server_id_vk, uploaded_image_data, hash_image,
     )
+
+    if not response_save_uploaded_image.get("response"):
+        print_error_message(response_save_uploaded_image, logger)
+        sys.exit(1)
+
     owner_id = response_save_uploaded_image["response"][0]["owner_id"]
     image_id = response_save_uploaded_image["response"][0]["id"]
     attachments = f"photo{owner_id}_{image_id}"
 
-    publish_image_on_wall(
+    json_schema_publish_image_on_wall = publish_image_on_wall(
         token,
         f"-{group_id}",
-        True,
+        1,
         attachments,
         fetch_author_comment,
         version_api=VERSION_API,
     )
+
+    if not json_schema_publish_image_on_wall.get("response"):
+        print_error_message(response_save_uploaded_image, logger)
+        sys.exit(1)
