@@ -92,6 +92,10 @@ def post_vkontakte(fetch_author_comment, saved_image_location):
     uploaded_image_data = response_upload_image_on_server_vk["photo"]
     hash_image = response_upload_image_on_server_vk["hash"]
 
+    if uploaded_image_data == "[]":
+        logger.error("Failed to upload comic on server")
+        sys.exit(1)
+
     response_save_uploaded_image = save_uploaded_image(
         token, server_id_vk, uploaded_image_data, hash_image,
     )
