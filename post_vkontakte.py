@@ -18,10 +18,7 @@ def get_address_to_upload_photo(token, version_api=VERSION_API):
     vk_api_url = "https://api.vk.com/method/"
     method_name = "photos.getWallUploadServer"
     search_params = {"access_token": token, "v": version_api}
-    return requests.get(
-        f"{vk_api_url}{method_name}",
-        params=search_params,
-    ).json()
+    return requests.get(f"{vk_api_url}{method_name}", params=search_params).json()
 
 
 def upload_image_on_server_vk(photo, address_to_upload_photo):
@@ -33,7 +30,7 @@ def upload_image_on_server_vk(photo, address_to_upload_photo):
 
 
 def save_uploaded_image(
-        token, server_id_vk, uploaded_photo_data, hash_image, version_api=VERSION_API
+        token, server_id_vk, uploaded_photo_data, hash_image, version_api=VERSION_API,
 ):
     vk_api_url = "https://api.vk.com/method/"
     method_name = "photos.saveWallPhoto"
@@ -44,25 +41,22 @@ def save_uploaded_image(
         "access_token": token,
         "v": version_api,
     }
-    return requests.post(
-        f"{vk_api_url}{method_name}", params=search_params
-    ).json()
+    return requests.post(f"{vk_api_url}{method_name}", params=search_params).json()
 
 
-def publish_image_on_wall(token, owner_id, from_group, attachments, message, version_api=VERSION_API):
+def publish_image_on_wall(
+    token, owner_id, attachments, message, version_api=VERSION_API,
+):
     vk_api_url = "https://api.vk.com/method/"
     method_name = "wall.post"
     search_params = {
         "owner_id": owner_id,
-        "from_group": from_group,
         "attachments": attachments,
         "message": message,
         "access_token": token,
         "v": version_api,
     }
-    response = requests.get(
-        f"{vk_api_url}{method_name}", params=search_params
-    )
+    response = requests.get(f"{vk_api_url}{method_name}", params=search_params)
     return response.json()
 
 
@@ -97,7 +91,10 @@ def post_vkontakte(fetch_author_comment, saved_image_location):
         sys.exit(1)
 
     response_save_uploaded_image = save_uploaded_image(
-        token, server_id_vk, uploaded_image_data, hash_image,
+        token,
+        server_id_vk,
+        uploaded_image_data,
+        hash_image,
     )
 
     if not response_save_uploaded_image.get("response"):
@@ -111,10 +108,8 @@ def post_vkontakte(fetch_author_comment, saved_image_location):
     json_schema_publish_image_on_wall = publish_image_on_wall(
         token,
         f"-{group_id}",
-        1,
         attachments,
         fetch_author_comment,
-        version_api=VERSION_API,
     )
 
     if not json_schema_publish_image_on_wall.get("response"):

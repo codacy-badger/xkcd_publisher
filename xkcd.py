@@ -1,21 +1,24 @@
 import os
 import sys
-from random import randint
+from secrets import SystemRandom
 
 import requests
 from requests.exceptions import ConnectionError, HTTPError
 
-from logging import config, getLogger
-
-URL_LAST_COMIC = "https://xkcd.com/info.0.json"
-
-config.fileConfig(fname="logger.cfg", disable_existing_loggers=False)
-logger = getLogger(__file__)
+URL_LAST_COMIC_DATA = "https://xkcd.com/info.0.json"
 
 
-def download_image(image_url, saved_image_location):
-    response = requests.get(image_url)
-    if response.ok:
+def download_image(image_url, saved_image_location, logger):
+    try:
+        response = requests.get(image_url)
+        response.raise_for_status()
+    except ConnectionError:
+        logger.critical("It seems the xkcd.com is not available")
+        sys.exit(1)
+    except HTTPError as error:
+        logger.critical(f"HTTP error occurred: {error}")
+        sys.exit(1)
+    else:
         with open(saved_image_location, "wb") as image_file:
             image_file.write(response.content)
 
@@ -26,23 +29,22 @@ def get_file_extension(url):
     return file_extension
 
 
-def fetch_random_comic_url(url_last_comic):
+def fetch_random_comic_url(url_last_comic_data, logger):
     try:
-        response = requests.get(url_last_comic)
+        response = requests.get(url_last_comic_data)
         response.raise_for_status()
     except ConnectionError:
         logger.critical("It seems the xkcd.com is not available")
         sys.exit(1)
     except HTTPError as error:
-        logger.error(f"HTTP error occurred: {error}")
+        logger.critical(f"HTTP error occurred: {error}")
         sys.exit(1)
     else:
         count_of_comics = response.json()["num"]
-        return f"http://xkcd.com/{randint(1, count_of_comics)}/info.0.json"
+        return f"http://xkcd.com/{SystemRandom().randrange(1, count_of_comics)}/info.0.json"
 
 
-def fetch_comic_image_url(comic_url):
-    # TODO поменять комментарии
+def fetch_comic_image_url(comic_url, logger):
     try:
         response = requests.get(comic_url)
         response.raise_for_status()
@@ -56,10 +58,9 @@ def fetch_comic_image_url(comic_url):
         return response.json()["img"]
 
 
-def fetch_author_comment():
-    # TODO поменять комментарии
+def fetch_author_comment(logger):
     try:
-        comic_url = fetch_random_comic_url(URL_LAST_COMIC)
+        comic_url = fetch_random_comic_url(URL_LAST_COMIC_DATA, logger)
         response = requests.get(comic_url)
         response.raise_for_status()
     except ConnectionError:
@@ -72,23 +73,23 @@ def fetch_author_comment():
         return response.json()["alt"]
 
 
-def download_image_comic():
-    random_comic_url = fetch_random_comic_url(URL_LAST_COMIC)
-    image_comic_url = fetch_comic_image_url(random_comic_url)
+def download_image_comic(logger):
+    random_comic_url = fetch_random_comic_url(URL_LAST_COMIC_DATA, logger)
+    image_comic_url = fetch_comic_image_url(random_comic_url, logger)
     file_extension = get_file_extension(image_comic_url)
     saved_image_location = f"comic.{file_extension}"
-    download_image(image_comic_url, saved_image_location)
+    download_image(image_comic_url, saved_image_location, logger)
 
 
 def get_saved_image_location():
     image_extension = [
-        'bmp',
-        'jpeg',
-        'jpg',
-        'png',
+        "bmp",
+        "jpeg",
+        "jpg",
+        "png",
     ]
 
-    files = os.listdir(os.getcwd())
-    for filename in files:
-        if get_file_extension(filename) in image_extension:
-            return os.path.abspath(filename)
+    files_of_project = os.listdir(os.getcwd())
+    for file_of_project in files_of_project:
+        if get_file_extension(file_of_project) in image_extension:
+            return os.path.abspath(file_of_project)
